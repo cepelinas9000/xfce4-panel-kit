@@ -1,0 +1,89 @@
+# Distributed under the terms of the GNU General Public License v2
+
+EAPI=7
+
+inherit xdg-utils autotools vala
+
+DESCRIPTION="Widgets library for the Xfce desktop environment"
+HOMEPAGE="{{homepage}}"
+SRC_URI="{{ artifacts[0].src_uri }}"
+
+LICENSE="LGPL-2+ GPL-2+"
+
+SLOT="0"
+KEYWORDS="*"
+
+IUSE="debug glade introspection startup-notification system-info vala"
+REQUIRED_USE="vala? ( introspection )"
+
+
+RDEPEND=">=dev-libs/glib-2.66.0:2
+	>=x11-libs/gtk+-3.24.0:3[introspection?]
+	>=xfce-base/libxfce4util-4.17.2[introspection?]
+	>=xfce-base/xfconf-4.12.0
+        glade? ( dev-util/glade:3.10= )
+	x11-libs/libX11:=
+	x11-libs/libICE:=
+	x11-libs/libSM:=
+        introspection? ( dev-libs/gobject-introspection:= )
+        startup-notification? ( x11-libs/startup-notification:= )
+	system-info? (
+		dev-libs/libgudev
+		gnome-base/libgtop
+		>=media-libs/libepoxy-1.2
+	)
+
+"
+
+DEPEND="${RDEPEND}"
+
+BDEPEND="
+	dev-util/intltool
+	sys-devel/gettext
+	virtual/pkgconfig
+	dev-lang/perl
+	vala? ( $(vala_depend) )
+	"
+
+post_src_unpack() {
+	if [ ! -d "${S}" ] ; then
+		mv "${WORKDIR}"/${PN}-* "${S}" || die
+	fi
+}
+
+src_prepare() {
+	NOCONFIGURE=1 ./autogen.sh
+	default
+	eautoreconf
+}
+
+src_configure() {
+        local myconf=(
+		--enable-maintainer-mode # git source code doesn't comes with generated files, for example. glib-genmarshal only running in maintainer mode
+		$(use_enable introspection)
+		$(use_enable startup-notification)
+		$(use_enable system-info glibtop)
+		$(use_enable system-info epoxy)
+		$(use_enable system-info gudev)
+		$(use_enable vala)
+		$(use_enable glade gladeui2)
+		--with-vendor-info=Funtoo
+		--with-x
+        )
+
+        use vala && vala_src_prepare
+        econf "${myconf[@]}"
+}
+
+src_install() {
+	default
+	find "${ED}" -name '*.la' -delete || die
+}
+
+pkg_postinst() {
+	xdg_icon_cache_update
+}
+
+pkg_postrm() {
+	xdg_icon_cache_update
+}
